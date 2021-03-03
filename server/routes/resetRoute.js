@@ -66,24 +66,21 @@ router.get('/:token', (req, res) => {
 
 router.post('/', (req, res) => {
   const { token, email, password } = req.body.data;
-  const newPassword = hashPassword(password, (err, hashedPassword) => {
+  hashPassword(password, (err, hashedPassword) => {
     if (err) {
       res.status(500).send('Error hashing password');
       return;
     }
-    User.updateOne(
-      { token, email },
-      {
-        $set: {
-          password: hashedPassword,
-          token: null
-        }
-      }
-    )
-      .then((dbResponse) => {
-        if (dbResponse.n === 1) {
-          res.send('Password Changed');
-        } else res.status(400).send('Email/Token combination not found');
+    User.findOne({ token, email })
+      .then((document) => {
+        document.password = hashedPassword;
+        document.set('token', undefined, { strict: false });
+        document
+          .save()
+          .then(() => {
+            res.send('Password Changed');
+          })
+          .catch(() => res.status(400).send('Email/Token combination not found'));
       })
       .catch((err) => {
         res.status(500).send('Error changing password');
